@@ -1,38 +1,42 @@
 ﻿# Proyecto Imperia CRM
 
-CRM web basado en:
-- `Base de datos Partum.xlsx`
-- `JAVA.docx`
+CRM funcional y personalizable, listo para Vercel.
 
-## Qué incluye
-- Dashboard de KPIs operativos
-- Pipeline tipo Kanban por estado
-- Tabla maestra de tareas con filtros y búsqueda
-- Vista por cliente
-- Vista por colaborador
-- Bandeja de alertas urgentes basada en lógica de recordatorios
-- Estilo visual Material + Liquid Glass, responsive
+## Funcionalidades
+- CRUD completo de tareas
+- CRUD completo de clientes
+- CRUD completo de miembros de equipo
+- Calendario editable (crear, editar, borrar eventos)
+- Cambio de status y avance de tareas en tiempo real
+- Alertas visuales por vencimiento
+- Prueba de envio de correo de alertas por API
+- Persistencia local en navegador (localStorage)
 
-## Cómo correr
-1. Abre terminal en esta carpeta.
-2. Ejecuta:
-
+## Correr local
 ```powershell
 python -m http.server 4173
 ```
+Abrir: `http://127.0.0.1:4173`
 
-3. Abre `http://127.0.0.1:4173`.
+## Prueba de correo en Vercel
+Endpoint: `POST /api/send-test-email`
 
-## Regenerar datos desde el Excel/DOCX
-Si cambian los archivos base, vuelve a generar `data/data.json`:
+Variables de entorno recomendadas en Vercel:
+- `SMTP_HOST`
+- `SMTP_PORT` (587 o 465)
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
 
-```powershell
-"C:\Users\Diseño Partum Design\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" scripts\extract_data.py
-```
+Si faltan variables SMTP, el endpoint responde en **modo demo** con preview del payload.
+
+## Fuente de datos inicial
+- `data/data.json` (generado desde tu Excel y DOCX)
 
 ## Estructura
-- `index.html`: layout principal
-- `styles.css`: tema visual y responsive
-- `app.js`: lógica de CRM (filtros, tabs, render)
-- `data/data.json`: dataset generado desde Excel
-- `scripts/extract_data.py`: extractor de datos
+- `index.html` interfaz principal
+- `styles.css` tema visual Material + Liquid Glass
+- `app.js` logica CRM y CRUD
+- `api/send-test-email.js` envio de correo de prueba
+- `data/data.json` semilla inicial
+- `scripts/extract_data.py` regenera semilla desde Excel

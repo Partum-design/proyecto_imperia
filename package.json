@@ -1,0 +1,13 @@
+﻿{
+  "name": "proyecto-imperia-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CRM personalizable Proyecto Imperia",
+  "scripts": {
+    "serve": "python -m http.server 4173",
+    "check": "node --check app.js"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.14"
+  }
+}
