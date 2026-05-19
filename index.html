@@ -1,0 +1,63 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proyecto Imperia | CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Sora:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-layer"></div>
+  <main class="app-shell">
+    <header class="topbar glass-card">
+      <div>
+        <p class="eyebrow">CRM OPERATIVO</p>
+        <h1>Proyecto Imperia</h1>
+        <p class="subtitle">Base viva de clientes, tareas y seguimiento en tiempo real.</p>
+      </div>
+      <div class="topbar-meta">
+        <div class="meta-pill">
+          <span class="material-symbols-rounded">calendar_month</span>
+          <span id="current-date"></span>
+        </div>
+        <div class="meta-pill accent" id="record-count">Cargando datos...</div>
+      </div>
+    </header>
+
+    <section class="kpi-grid" id="kpi-grid"></section>
+
+    <section class="glass-card controls">
+      <div class="search-wrap">
+        <span class="material-symbols-rounded">search</span>
+        <input type="search" id="search-input" placeholder="Busca por cliente, tarea, colaborador o correo" />
+      </div>
+      <select id="client-filter"><option value="">Todos los clientes</option></select>
+      <select id="owner-filter"><option value="">Todos los colaboradores</option></select>
+      <select id="status-filter"><option value="">Todos los estados</option></select>
+      <select id="priority-filter"><option value="">Todas las prioridades</option></select>
+    </section>
+
+    <nav class="tab-nav glass-card" id="tab-nav">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="pipeline">Pipeline</button>
+      <button class="tab" data-tab="tasks">Tareas</button>
+      <button class="tab" data-tab="clients">Clientes</button>
+      <button class="tab" data-tab="team">Equipo</button>
+      <button class="tab" data-tab="alerts">Alertas</button>
+    </nav>
+
+    <section class="view active" id="dashboard-view"></section>
+    <section class="view" id="pipeline-view"></section>
+    <section class="view" id="tasks-view"></section>
+    <section class="view" id="clients-view"></section>
+    <section class="view" id="team-view"></section>
+    <section class="view" id="alerts-view"></section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
