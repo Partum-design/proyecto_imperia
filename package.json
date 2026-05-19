@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "proyecto-imperia-crm",
   "version": "1.0.0",
   "private": true,
@@ -8,6 +8,6 @@
     "check": "node --check app.js"
   },
   "dependencies": {
-    "nodemailer": "^6.9.14"
+    "nodemailer": "^8.0.7"
   }
 }

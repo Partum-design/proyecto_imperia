@@ -8,9 +8,19 @@ CRM funcional y personalizable, listo para Vercel.
 - CRUD completo de miembros de equipo
 - Calendario editable (crear, editar, borrar eventos)
 - Cambio de status y avance de tareas en tiempo real
+- Dashboard de KPIs por area y por persona
+- Opciones de accesibilidad: contraste, motion y densidad
 - Alertas visuales por vencimiento
 - Prueba de envio de correo de alertas por API
 - Persistencia local en navegador (localStorage)
+
+## Base limpia inicial
+- Ingenieria: Perla Ureña - Especialista ISO
+- Area Desarrollo: Bryan Lopez - Tech Architect
+- Area Diseño: Fernanda Samperio - Project Manager/Brand Manager
+- Area RRHH: Gabriela Valenzo - Administracion y RH
+- Clientes iniciales: 0
+- Tareas iniciales: 0
 
 ## Correr local
 ```powershell
