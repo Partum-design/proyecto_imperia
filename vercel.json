@@ -1,4 +1,4 @@
-﻿{
-  "version": 2,
-  "trailingSlash": false
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true
 }
