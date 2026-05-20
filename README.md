@@ -13,6 +13,7 @@ CRM funcional y personalizable, listo para Vercel.
 - Planeacion trimestral con tareas y eventos del trimestre
 - Objetivo global de bono semestral por porcentaje configurable
 - Exportacion e impresion del reporte KPI
+- Respaldo y restauracion de la base en JSON desde el dashboard
 - Opciones de accesibilidad: contraste, motion y densidad
 - Alertas visuales por vencimiento
 - Prueba de envio de correo de alertas por API

@@ -361,6 +361,13 @@ function renderDashboard() {
           <button class="toggle ${state.accessibility.density === "compact" ? "active" : ""}" data-action="toggle-density">${icon("density_medium")}Compacto</button>
         </div>
       </article>
+      <article class="panel">
+        <h3>Datos</h3>
+        <div class="accessibility-grid">
+          <button class="toggle" data-action="download-data">${icon("download")}Respaldo</button>
+          <label class="toggle file-control">${icon("upload")}Restaurar<input type="file" id="data-import-input" accept="application/json"></label>
+        </div>
+      </article>
     </section>
   `;
 }
@@ -548,6 +555,43 @@ function removeById(list, id) {
   return list.filter((item) => item.id !== id);
 }
 
+function upsertItem(list, id, payload, createType) {
+  if (id) {
+    const index = list.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      list[index] = { ...list[index], ...payload };
+      return list[index];
+    }
+  }
+  const item = { id: nextId(createType), createdAt: new Date().toISOString(), ...payload };
+  list.push(item);
+  return item;
+}
+
+function downloadDataBackup() {
+  const payload = JSON.stringify(normalizeStore({ ...state.store }), null, 2);
+  const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `proyecto-imperia-backup-${todayYMD()}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+async function restoreDataBackup(file) {
+  if (!file) return;
+  const text = await file.text();
+  const payload = JSON.parse(text);
+  const restored = normalizeStore({ version: 5, ...payload });
+  if (!Array.isArray(restored.members) || !Array.isArray(restored.clients) || !Array.isArray(restored.tasks) || !Array.isArray(restored.events)) {
+    throw new Error("El archivo no tiene una estructura valida");
+  }
+  state.store = restored;
+  saveStore();
+  renderAll();
+}
+
 function downloadReport() {
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reporte KPI Proyecto Imperia</title><link rel="stylesheet" href="styles.css"></head><body><main class="app-shell">${reportHtml()}</main></body></html>`;
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
@@ -597,6 +641,7 @@ function bindEvents() {
     }
     if (action === "download-report") return downloadReport();
     if (action === "print-report") return printReport();
+    if (action === "download-data") return downloadDataBackup();
 
     if (action === "task-edit") return renderTasks(id);
     if (action === "task-cancel") return renderTasks();
@@ -640,6 +685,14 @@ function bindEvents() {
   document.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    if (target.id === "data-import-input") {
+      restoreDataBackup(target.files?.[0])
+        .catch((error) => alert(`No se pudo restaurar: ${error.message}`))
+        .finally(() => {
+          target.value = "";
+        });
+      return;
+    }
     const { action, id } = target.dataset;
     const task = state.store.tasks.find((item) => item.id === id);
     if (!task) return;
@@ -659,8 +712,7 @@ function bindEvents() {
     if (form.id === "task-form") {
       const payload = { title: data.title.trim(), description: data.description || "", clientId: data.clientId || "", memberId: data.memberId || "", status: data.status || "Sin iniciar", priority: data.priority || "media", progress: Math.max(0, Math.min(100, Number(data.progress || 0))), startDate: data.startDate || "", dueDate: data.dueDate || "", updatedAt: new Date().toISOString() };
       if (!payload.title) return;
-      if (data.id) state.store.tasks[state.store.tasks.findIndex((task) => task.id === data.id)] = { ...state.store.tasks.find((task) => task.id === data.id), ...payload };
-      else state.store.tasks.push({ id: nextId("task"), createdAt: new Date().toISOString(), ...payload });
+      upsertItem(state.store.tasks, data.id, payload, "task");
       saveStore();
       return refresh("tasks");
     }
@@ -668,8 +720,7 @@ function bindEvents() {
     if (form.id === "client-form") {
       const payload = { name: data.name.trim(), contactEmail: data.contactEmail || "", ownerId: data.ownerId || "", notes: data.notes || "", updatedAt: new Date().toISOString() };
       if (!payload.name) return;
-      if (data.id) state.store.clients[state.store.clients.findIndex((client) => client.id === data.id)] = { ...state.store.clients.find((client) => client.id === data.id), ...payload };
-      else state.store.clients.push({ id: nextId("client"), createdAt: new Date().toISOString(), ...payload });
+      upsertItem(state.store.clients, data.id, payload, "client");
       saveStore();
       return refresh("clients");
     }
@@ -677,8 +728,7 @@ function bindEvents() {
     if (form.id === "member-form") {
       const payload = { name: data.name.trim(), email: data.email || "", department: data.department || "", role: data.role || "", target: Number(data.target || 100), updatedAt: new Date().toISOString() };
       if (!payload.name) return;
-      if (data.id) state.store.members[state.store.members.findIndex((member) => member.id === data.id)] = { ...state.store.members.find((member) => member.id === data.id), ...payload };
-      else state.store.members.push({ id: nextId("member"), createdAt: new Date().toISOString(), ...payload });
+      upsertItem(state.store.members, data.id, payload, "member");
       saveStore();
       return refresh("team");
     }
@@ -686,8 +736,7 @@ function bindEvents() {
     if (form.id === "event-form") {
       const payload = { title: data.title.trim(), date: data.date || "", startTime: data.startTime || "", endTime: data.endTime || "", type: data.type || "otro", clientId: data.clientId || "", memberId: data.memberId || "", taskId: data.taskId || "", notes: data.notes || "", updatedAt: new Date().toISOString() };
       if (!payload.title || !payload.date) return;
-      if (data.id) state.store.events[state.store.events.findIndex((eventItem) => eventItem.id === data.id)] = { ...state.store.events.find((eventItem) => eventItem.id === data.id), ...payload };
-      else state.store.events.push({ id: nextId("event"), createdAt: new Date().toISOString(), ...payload });
+      upsertItem(state.store.events, data.id, payload, "event");
       saveStore();
       return refresh("calendar");
     }

@@ -392,6 +392,18 @@ h3 {
   transition: transform 220ms var(--ease), box-shadow 220ms var(--ease), background 220ms var(--ease);
 }
 
+.file-control {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-control input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .toggle.active,
 .btn.filled {
   color: #ffffff;
