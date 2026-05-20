@@ -9,6 +9,10 @@ CRM funcional y personalizable, listo para Vercel.
 - Calendario editable (crear, editar, borrar eventos)
 - Cambio de status y avance de tareas en tiempo real
 - Dashboard de KPIs por area y por persona
+- Reporte mensual de KPI por area y por persona
+- Planeacion trimestral con tareas y eventos del trimestre
+- Objetivo global de bono semestral por porcentaje configurable
+- Exportacion e impresion del reporte KPI
 - Opciones de accesibilidad: contraste, motion y densidad
 - Alertas visuales por vencimiento
 - Prueba de envio de correo de alertas por API

@@ -261,7 +261,8 @@ h3 {
 }
 
 .dashboard-grid,
-.workbench {
+.workbench,
+.report-layout {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
@@ -406,8 +407,72 @@ h3 {
   grid-template-columns: 380px 1fr;
 }
 
+.report-layout {
+  grid-template-columns: 360px 1fr;
+}
+
 .table-panel {
   min-width: 0;
+}
+
+.report-document {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.report-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #d7e3ff, #e6f4ea 56%, #feefc3);
+}
+
+.report-header span,
+.report-section p,
+.bonus-card span,
+.bonus-card small,
+.report-tile small {
+  color: var(--muted);
+}
+
+.bonus-card {
+  min-width: 150px;
+  border-radius: 24px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  display: grid;
+  gap: 4px;
+}
+
+.bonus-card strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.report-section {
+  margin-top: 18px;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.report-tile {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 14px;
+  border-radius: 22px;
+  background: var(--surface-2);
 }
 
 .editor-form {
@@ -579,12 +644,15 @@ html[data-motion="off"] *::after {
 @media (max-width: 1120px) {
   .kpi-grid,
   .dashboard-grid,
-  .workbench {
+  .workbench,
+  .report-layout {
     grid-template-columns: 1fr 1fr;
   }
 
   .span-2,
-  .workbench .panel {
+  .workbench .panel,
+  .report-layout .panel,
+  .report-document {
     grid-column: 1 / -1;
   }
 }
@@ -602,7 +670,12 @@ html[data-motion="off"] *::after {
 
   .kpi-grid,
   .dashboard-grid,
-  .workbench {
+  .workbench,
+  .report-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .report-header {
     grid-template-columns: 1fr;
   }
 
@@ -616,5 +689,29 @@ html[data-motion="off"] *::after {
 
   h2 {
     font-size: 1.28rem;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  .bg-layer,
+  .topbar,
+  .kpi-grid,
+  .tab-nav,
+  .panel:has(#report-settings-form) {
+    display: none !important;
+  }
+
+  .app-shell {
+    width: 100%;
+    padding: 0;
+  }
+
+  .report-document {
+    box-shadow: none;
+    border: 0;
   }
 }

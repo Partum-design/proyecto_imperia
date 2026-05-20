@@ -19,6 +19,7 @@ const views = {
   tasks: document.getElementById("tasks-view"),
   clients: document.getElementById("clients-view"),
   team: document.getElementById("team-view"),
+  reports: document.getElementById("reports-view"),
   calendar: document.getElementById("calendar-view"),
   alerts: document.getElementById("alerts-view"),
 };
@@ -26,6 +27,9 @@ const views = {
 const icon = (name) => `<span class="material-symbols-rounded" aria-hidden="true">${name}</span>`;
 const esc = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 const todayYMD = () => new Date().toISOString().slice(0, 10);
+const currentMonth = () => todayYMD().slice(0, 7);
+const currentYear = () => new Date().getFullYear();
+const currentQuarter = () => Math.floor(new Date().getMonth() / 3) + 1;
 
 function fmtDate(value) {
   if (!value) return "Sin fecha";
@@ -118,6 +122,12 @@ function buildStore(seed) {
     clients: [],
     tasks: [],
     events: [],
+    settings: {
+      bonusTarget: 85,
+      reportMonth: currentMonth(),
+      reportQuarter: currentQuarter(),
+      reportYear: currentYear(),
+    },
     taskSeq: 0,
     clientSeq: 0,
     memberSeq: members.length,
@@ -125,18 +135,107 @@ function buildStore(seed) {
   };
 }
 
+function normalizeStore(store) {
+  store.members ||= [];
+  store.clients ||= [];
+  store.tasks ||= [];
+  store.events ||= [];
+  store.settings = {
+    bonusTarget: 85,
+    reportMonth: currentMonth(),
+    reportQuarter: currentQuarter(),
+    reportYear: currentYear(),
+    ...(store.settings || {}),
+  };
+  store.taskSeq ||= store.tasks.length;
+  store.clientSeq ||= store.clients.length;
+  store.memberSeq ||= store.members.length;
+  store.eventSeq ||= store.events.length;
+  return store;
+}
+
 async function loadStore() {
   const cached = localStorage.getItem(STORAGE_KEY);
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
-      if (parsed?.version === 5) return parsed;
+      if (parsed?.version === 5) return normalizeStore(parsed);
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
   }
   const response = await fetch("./data/data.json");
-  return buildStore(await response.json());
+  return normalizeStore(buildStore(await response.json()));
+}
+
+function dateInMonth(value, month) {
+  return Boolean(value && month && String(value).slice(0, 7) === month);
+}
+
+function dateInQuarter(value, quarter, year) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getFullYear() === Number(year) && Math.floor(date.getMonth() / 3) + 1 === Number(quarter);
+}
+
+function kpiScore(tasks) {
+  if (!tasks.length) return 0;
+  const completed = tasks.filter((task) => task.status === "Completado").length;
+  const progress = tasks.reduce((sum, task) => sum + Number(task.progress || 0), 0) / tasks.length;
+  const overduePenalty = tasks.filter((task) => dayDiff(task.dueDate) < 0 && task.status !== "Completado").length * 8;
+  return Math.max(0, Math.min(100, Math.round(((completed / tasks.length) * 55) + (progress * 0.45) - overduePenalty)));
+}
+
+function filteredTasksByPeriod(period, options = {}) {
+  if (period === "month") return state.store.tasks.filter((task) => dateInMonth(task.dueDate || task.startDate, options.month));
+  if (period === "quarter") return state.store.tasks.filter((task) => dateInQuarter(task.dueDate || task.startDate, options.quarter, options.year));
+  if (period === "semester") {
+    const semester = Number(options.semester);
+    return state.store.tasks.filter((task) => {
+      const value = task.dueDate || task.startDate;
+      if (!value) return false;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime()) || date.getFullYear() !== Number(options.year)) return false;
+      return semester === 1 ? date.getMonth() <= 5 : date.getMonth() >= 6;
+    });
+  }
+  return state.store.tasks;
+}
+
+function statsForMembers(tasks) {
+  return state.store.members.map((member) => {
+    const personTasks = tasks.filter((task) => task.memberId === member.id);
+    return {
+      ...member,
+      tasks: personTasks.length,
+      completed: personTasks.filter((task) => task.status === "Completado").length,
+      overdue: personTasks.filter((task) => dayDiff(task.dueDate) < 0 && task.status !== "Completado").length,
+      score: kpiScore(personTasks),
+    };
+  });
+}
+
+function statsForAreas(tasks) {
+  const base = new Map();
+  state.store.members.forEach((member) => {
+    const area = member.department || "Sin area";
+    if (!base.has(area)) base.set(area, { area, tasks: [], members: 0 });
+    base.get(area).members += 1;
+  });
+  tasks.forEach((task) => {
+    const area = getMember(task.memberId)?.department || "Sin area";
+    if (!base.has(area)) base.set(area, { area, tasks: [], members: 0 });
+    base.get(area).tasks.push(task);
+  });
+  return [...base.values()].map((item) => ({
+    area: item.area,
+    members: item.members,
+    tasks: item.tasks.length,
+    completed: item.tasks.filter((task) => task.status === "Completado").length,
+    overdue: item.tasks.filter((task) => dayDiff(task.dueDate) < 0 && task.status !== "Completado").length,
+    score: kpiScore(item.tasks),
+  }));
 }
 
 function areaStats() {
@@ -327,6 +426,83 @@ function renderCalendar(editId = "") {
   views.calendar.innerHTML = `<section class="workbench"><article class="panel"><form id="event-form" class="editor-form"><input type="hidden" name="id" value="${esc(edit.id)}"><label><span>Evento</span><input name="title" value="${esc(edit.title)}" required></label><label><span>Fecha</span><input type="date" name="date" value="${esc(edit.date)}" required></label><label><span>Inicio</span><input type="time" name="startTime" value="${esc(edit.startTime)}"></label><label><span>Fin</span><input type="time" name="endTime" value="${esc(edit.endTime)}"></label><label><span>Tipo</span><select name="type">${EVENT_TYPES.map((type) => `<option ${type === edit.type ? "selected" : ""}>${esc(type)}</option>`).join("")}</select></label><label><span>Cliente</span><select name="clientId">${selectOptions(state.store.clients, edit.clientId, "Sin cliente")}</select></label><label><span>Responsable</span><select name="memberId">${selectOptions(state.store.members, edit.memberId, "Sin responsable")}</select></label><label><span>Tarea</span><select name="taskId"><option value="">Sin tarea</option>${state.store.tasks.map((task) => `<option value="${esc(task.id)}" ${task.id === edit.taskId ? "selected" : ""}>${esc(task.title)}</option>`).join("")}</select></label><label class="wide"><span>Notas</span><textarea name="notes">${esc(edit.notes)}</textarea></label><div class="form-actions"><button class="btn filled" type="submit">${icon("save")}Guardar</button>${edit.id ? `<button class="btn tonal" type="button" data-action="event-cancel">${icon("close")}Cancelar</button>` : ""}</div></form></article><article class="panel table-panel"><h3>Calendario</h3><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Evento</th><th>Tipo</th><th>Cliente</th><th>Responsable</th><th></th></tr></thead><tbody>${rows || "<tr><td colspan='7'>Sin eventos.</td></tr>"}</tbody></table></div></article></section>`;
 }
 
+function reportHtml() {
+  const settings = state.store.settings;
+  const monthTasks = filteredTasksByPeriod("month", { month: settings.reportMonth });
+  const quarterTasks = filteredTasksByPeriod("quarter", { quarter: settings.reportQuarter, year: settings.reportYear });
+  const semester = Number(settings.reportQuarter) <= 2 ? 1 : 2;
+  const semesterTasks = filteredTasksByPeriod("semester", { semester, year: settings.reportYear });
+  const areaRows = statsForAreas(monthTasks);
+  const memberRows = statsForMembers(monthTasks);
+  const semesterScore = kpiScore(semesterTasks);
+  const bonusTarget = Number(settings.bonusTarget || 85);
+  const bonusStatus = semesterScore >= bonusTarget ? "Cumple" : "No cumple";
+  const planning = [
+    ...quarterTasks.map((task) => ({ type: "Tarea", title: task.title, owner: memberName(task.memberId), date: task.dueDate || task.startDate, status: task.status })),
+    ...state.store.events.filter((eventItem) => dateInQuarter(eventItem.date, settings.reportQuarter, settings.reportYear)).map((eventItem) => ({ type: "Evento", title: eventItem.title, owner: memberName(eventItem.memberId), date: eventItem.date, status: eventItem.type })),
+  ].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+
+  return `
+    <article class="report-document" id="generated-report">
+      <header class="report-header">
+        <div>
+          <p class="eyebrow">REPORTE KPI</p>
+          <h2>Proyecto Imperia</h2>
+          <span>Mensual ${esc(settings.reportMonth)} / Q${esc(settings.reportQuarter)} ${esc(settings.reportYear)}</span>
+        </div>
+        <div class="bonus-card">
+          <span>Bono semestral</span>
+          <strong>${semesterScore}%</strong>
+          <small>Meta ${bonusTarget}% / ${bonusStatus}</small>
+        </div>
+      </header>
+      <section class="report-section">
+        <h3>KPI mensual por area</h3>
+        <div class="report-grid">${areaRows.map((row) => `
+          <div class="report-tile">
+            <strong>${esc(row.area)}</strong>
+            <div class="ring" style="--value:${row.score}"><span>${row.score}%</span></div>
+            <small>${row.tasks} tareas / ${row.completed} cerradas / ${row.overdue} vencidas</small>
+          </div>
+        `).join("")}</div>
+      </section>
+      <section class="report-section">
+        <h3>KPI mensual por persona</h3>
+        <div class="table-wrap"><table><thead><tr><th>Persona</th><th>Area</th><th>Rol</th><th>Tareas</th><th>Cerradas</th><th>Vencidas</th><th>KPI</th></tr></thead><tbody>${memberRows.map((row) => `<tr><td>${esc(row.name)}</td><td>${esc(row.department)}</td><td>${esc(row.role)}</td><td>${row.tasks}</td><td>${row.completed}</td><td>${row.overdue}</td><td><strong>${row.score}%</strong></td></tr>`).join("")}</tbody></table></div>
+      </section>
+      <section class="report-section">
+        <h3>Planeacion trimestral</h3>
+        <div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Elemento</th><th>Responsable</th><th>Fecha</th><th>Status</th></tr></thead><tbody>${planning.map((item) => `<tr><td>${esc(item.type)}</td><td>${esc(item.title)}</td><td>${esc(item.owner)}</td><td>${esc(fmtDate(item.date))}</td><td>${esc(item.status)}</td></tr>`).join("") || "<tr><td colspan='5'>Sin planeacion trimestral registrada.</td></tr>"}</tbody></table></div>
+      </section>
+      <section class="report-section">
+        <h3>Objetivo global</h3>
+        <p>El objetivo general se calcula con tareas del semestre: cumplimiento de cierres, avance promedio y penalizacion por vencimientos. El bono semestral se habilita cuando el KPI global llega o supera la meta configurada.</p>
+      </section>
+    </article>`;
+}
+
+function renderReports() {
+  const settings = state.store.settings;
+  views.reports.innerHTML = `
+    <section class="report-layout">
+      <article class="panel">
+        <h3>Configuracion de reporte</h3>
+        <form id="report-settings-form" class="editor-form">
+          <label><span>Mes KPI</span><input type="month" name="reportMonth" value="${esc(settings.reportMonth)}"></label>
+          <label><span>Trimestre</span><select name="reportQuarter">${[1, 2, 3, 4].map((quarter) => `<option value="${quarter}" ${Number(settings.reportQuarter) === quarter ? "selected" : ""}>Q${quarter}</option>`).join("")}</select></label>
+          <label><span>Año</span><input type="number" min="2020" max="2100" name="reportYear" value="${esc(settings.reportYear)}"></label>
+          <label><span>Meta bono semestral %</span><input type="number" min="0" max="100" name="bonusTarget" value="${esc(settings.bonusTarget)}"></label>
+          <div class="form-actions">
+            <button class="btn filled" type="submit">${icon("save")}Actualizar</button>
+            <button class="btn tonal" type="button" data-action="download-report">${icon("download")}Exportar</button>
+            <button class="btn tonal" type="button" data-action="print-report">${icon("print")}Imprimir</button>
+          </div>
+        </form>
+      </article>
+      ${reportHtml()}
+    </section>`;
+}
+
 function renderAlerts() {
   const urgent = state.store.tasks.filter((task) => {
     const diff = dayDiff(task.dueDate);
@@ -346,6 +522,7 @@ function renderAll() {
   renderTasks();
   renderClients();
   renderTeam();
+  renderReports();
   renderCalendar();
   renderAlerts();
 }
@@ -353,10 +530,12 @@ function renderAll() {
 function refresh(section) {
   renderKpis();
   renderDashboard();
+  renderReports();
   renderAlerts();
   if (section === "tasks") renderTasks();
   if (section === "clients") renderClients();
   if (section === "team") renderTeam();
+  if (section === "reports") renderReports();
   if (section === "calendar") renderCalendar();
 }
 
@@ -367,6 +546,27 @@ function switchTab(tab) {
 
 function removeById(list, id) {
   return list.filter((item) => item.id !== id);
+}
+
+function downloadReport() {
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reporte KPI Proyecto Imperia</title><link rel="stylesheet" href="styles.css"></head><body><main class="app-shell">${reportHtml()}</main></body></html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `reporte-kpi-${state.store.settings.reportMonth}.html`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function printReport() {
+  const report = document.getElementById("generated-report");
+  if (!report) return;
+  const printWindow = window.open("", "_blank", "width=1200,height=900");
+  printWindow.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reporte KPI Proyecto Imperia</title><link rel="stylesheet" href="styles.css"></head><body><main class="app-shell">${report.outerHTML}</main></body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 300);
 }
 
 function bindEvents() {
@@ -395,6 +595,8 @@ function bindEvents() {
       applyAccessibility();
       return renderDashboard();
     }
+    if (action === "download-report") return downloadReport();
+    if (action === "print-report") return printReport();
 
     if (action === "task-edit") return renderTasks(id);
     if (action === "task-cancel") return renderTasks();
@@ -488,6 +690,18 @@ function bindEvents() {
       else state.store.events.push({ id: nextId("event"), createdAt: new Date().toISOString(), ...payload });
       saveStore();
       return refresh("calendar");
+    }
+
+    if (form.id === "report-settings-form") {
+      state.store.settings = {
+        ...state.store.settings,
+        reportMonth: data.reportMonth || currentMonth(),
+        reportQuarter: Number(data.reportQuarter || currentQuarter()),
+        reportYear: Number(data.reportYear || currentYear()),
+        bonusTarget: Math.max(0, Math.min(100, Number(data.bonusTarget || 85))),
+      };
+      saveStore();
+      return refresh("reports");
     }
 
     if (form.id === "alert-test-form") {
